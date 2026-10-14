@@ -9,8 +9,20 @@ public static class JobOfferEndpoints
     {
         var group = app.MapGroup("/api/job-offers").WithTags("Job offers");
 
-        group.MapGet("/", async (JobOfferStatus? status, JobOfferService service, CancellationToken ct) =>
-            Results.Ok(await service.ListAsync(status, ct)));
+        group.MapGet("/", async (string? status, JobOfferService service, CancellationToken ct) =>
+        {
+            JobOfferStatus? filter = null;
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (!Enum.TryParse<JobOfferStatus>(status, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
+                    return Results.Problem(
+                        title: "Estado no válido",
+                        detail: $"Usa uno de estos: {string.Join(", ", Enum.GetNames<JobOfferStatus>())}.",
+                        statusCode: StatusCodes.Status400BadRequest);
+                filter = parsed;
+            }
+            return Results.Ok(await service.ListAsync(filter, ct));
+        });
 
         group.MapGet("/{id:guid}", async (Guid id, JobOfferService service, CancellationToken ct) =>
             await service.GetAsync(id, ct) is { } offer ? Results.Ok(offer) : Results.NotFound())

@@ -12,7 +12,7 @@ internal sealed class JobOfferRepository(JobsDbContext db) : IJobOfferRepository
     public async Task<IReadOnlyList<JobOffer>> ListAsync(JobOfferStatus? status, CancellationToken ct)
     {
         var query = db.JobOffers.AsNoTracking();
-        if (status is not null) query = query.Where(o => o.Status == status);
+        if (status is { } value) query = query.Where(o => o.Status == value);
         return await query.OrderByDescending(o => o.ArrivalDate).ThenBy(o => o.Company).ToListAsync(ct);
     }
 
