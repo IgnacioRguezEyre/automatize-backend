@@ -36,6 +36,14 @@ namespace Empleos.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<bool>("IsClosed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<string>("Portal")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -61,6 +69,74 @@ namespace Empleos.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("JobOffers", "jobs");
+                });
+
+            modelBuilder.Entity("Empleos.Domain.Sources.Source", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Rule")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Senders")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Sources", "jobs");
+                });
+
+            modelBuilder.Entity("Empleos.Domain.JobOffers.JobOffer", b =>
+                {
+                    b.OwnsMany("Empleos.Domain.JobOffers.ApplicationEvent", "Events", b1 =>
+                        {
+                            b1.Property<Guid>("JobOfferId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int");
+
+                            SqlServerPropertyBuilderExtensions.UseIdentityColumn(b1.Property<int>("Id"));
+
+                            b1.Property<DateOnly>("Date")
+                                .HasColumnType("date");
+
+                            b1.Property<string>("Text")
+                                .IsRequired()
+                                .HasMaxLength(280)
+                                .HasColumnType("nvarchar(280)");
+
+                            b1.Property<string>("Type")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("nvarchar(20)");
+
+                            b1.HasKey("JobOfferId", "Id");
+
+                            b1.ToTable("ApplicationEvents", "jobs");
+
+                            b1.WithOwner()
+                                .HasForeignKey("JobOfferId");
+                        });
+
+                    b.Navigation("Events");
                 });
 #pragma warning restore 612, 618
         }
