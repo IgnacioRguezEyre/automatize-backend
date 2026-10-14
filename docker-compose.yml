@@ -1,22 +1,23 @@
 # Infraestructura local para desarrollo. Arranca con: docker compose up -d
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: automatize-postgres
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    container_name: automatize-sqlserver
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-automatize}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en el archivo .env}
-      POSTGRES_DB: jobs
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Define MSSQL_SA_PASSWORD en el archivo .env}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${MSSQL_PORT:-1433}:1433"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - sqlserver-data:/var/opt/mssql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d jobs"]
-      interval: 5s
-      timeout: 3s
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
       retries: 10
+      start_period: 20s
 
 volumes:
-  postgres-data:
+  sqlserver-data:
