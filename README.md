@@ -19,3 +19,27 @@ dotnet user-secrets set "ConnectionStrings:Jobs" "Server=localhost,1433;Database
 ```
 
 Para parar: `docker compose down` (los datos se conservan en el volumen `sqlserver-data`; `docker compose down -v` los borra).
+
+## Migraciones (servicio Empleos)
+
+Herramienta, una sola vez: `dotnet tool install --global dotnet-ef`
+
+Desde `services/empleos`:
+
+```
+dotnet ef migrations add <Nombre> --project src/Empleos.Infrastructure --startup-project src/Empleos.Api --output-dir Persistence/Migrations
+dotnet ef database update --project src/Empleos.Infrastructure --startup-project src/Empleos.Api
+```
+
+Las tablas del servicio van en el esquema `jobs`.
+
+## API de Empleos
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| GET | `/api/job-offers?status=New` | Lista ofertas, opcionalmente por estado |
+| GET | `/api/job-offers/{id}` | Una oferta |
+| POST | `/api/job-offers` | Crea una oferta |
+| POST | `/api/job-offers/{id}/view` · `apply` · `unapply` · `discard` · `restore` | Cambia el estado |
+
+Una regla de dominio incumplida devuelve 409 (por ejemplo, aplicar a una descartada) y un dato no válido, 400. Las peticiones de ejemplo están en `src/Empleos.Api/Empleos.Api.http`.

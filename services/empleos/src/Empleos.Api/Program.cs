@@ -1,41 +1,44 @@
+using System.Text.Json.Serialization;
+using Empleos.Api.Endpoints;
+using Empleos.Application.JobOffers;
+using Empleos.Infrastructure;
+using Microsoft.AspNetCore.Diagnostics;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+var connectionString = builder.Configuration.GetConnectionString("Jobs")
+    ?? throw new InvalidOperationException("Falta la cadena de conexión 'Jobs'. Guárdala con dotnet user-secrets.");
+
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
+builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<JobOfferService>();
+builder.Services.AddInfrastructure(connectionString);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Las reglas de dominio que se incumplen se devuelven como 400 o 409 en lugar de 500.
+app.UseExceptionHandler(errors => errors.Run(async context =>
+{
+    var error = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+    var (status, title) = error switch
+    {
+        BadHttpRequestException bad => (bad.StatusCode, "Petición no válida"),
+        ArgumentException => (StatusCodes.Status400BadRequest, "Datos no válidos"),
+        InvalidOperationException => (StatusCodes.Status409Conflict, "Operación no permitida"),
+        _ => (StatusCodes.Status500InternalServerError, "Error inesperado")
+    };
+    context.Response.StatusCode = status;
+    await Results.Problem(title: title, detail: status < 500 ? error?.Message : null, statusCode: status).ExecuteAsync(context);
+}));
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapJobOfferEndpoints();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

@@ -1,6 +1,41 @@
-@Empleos.Api_HostAddress = http://localhost:5216
+@host = http://localhost:5216
 
-GET {{Empleos.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Crear una oferta (copia el "id" de la respuesta en @id)
+POST {{host}}/api/job-offers
+Content-Type: application/json
 
-###
+{
+  "title": "Backend Developer (.NET)",
+  "company": "ALTECH",
+  "portal": "LinkedIn",
+  "arrivalDate": "2026-10-14"
+}
+
+### Listar todas
+GET {{host}}/api/job-offers
+
+### Listar solo las nuevas
+GET {{host}}/api/job-offers?status=New
+
+@id = pega-aqui-el-id
+
+### Ver una
+GET {{host}}/api/job-offers/{{id}}
+
+### Marcar como vista
+POST {{host}}/api/job-offers/{{id}}/view
+
+### Marcar como aplicada
+POST {{host}}/api/job-offers/{{id}}/apply
+
+### Descartar
+POST {{host}}/api/job-offers/{{id}}/discard
+
+### Aplicar a una descartada: devuelve 409
+POST {{host}}/api/job-offers/{{id}}/apply
+
+### Crear sin título: devuelve 400
+POST {{host}}/api/job-offers
+Content-Type: application/json
+
+{ "title": "", "portal": "LinkedIn" }
