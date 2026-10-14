@@ -1,4 +1,5 @@
 @host = http://localhost:5216
+@id = 6d6551ef-c983-4a6d-ad47-04403b7f004a
 
 ### Crear una oferta (copia el "id" de la respuesta en @id)
 POST {{host}}/api/job-offers
@@ -16,8 +17,6 @@ GET {{host}}/api/job-offers
 
 ### Listar solo las nuevas
 GET {{host}}/api/job-offers?status=New
-
-@id = pega-aqui-el-id
 
 ### Ver una
 GET {{host}}/api/job-offers/{{id}}
