@@ -2,7 +2,11 @@ using Empleos.Domain.JobOffers;
 
 namespace Empleos.Application.JobOffers;
 
-/// <summary>Casos de uso de las ofertas. La fecha de hoy sale de TimeProvider para poder fijarla en los tests.</summary>
+/// <summary>
+/// Casos de uso de las ofertas: carga la oferta, le pide al dominio que haga el cambio y guarda.
+/// La fecha de hoy sale de TimeProvider para poder fijarla en los tests.
+/// Los métodos que reciben un id devuelven null si la oferta no existe.
+/// </summary>
 public sealed class JobOfferService(IJobOfferRepository repository, TimeProvider clock)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
@@ -10,7 +14,8 @@ public sealed class JobOfferService(IJobOfferRepository repository, TimeProvider
     public async Task<IReadOnlyList<JobOfferDto>> ListAsync(JobOfferStatus? status, CancellationToken ct)
     {
         var offers = await repository.ListAsync(status, ct);
-        return offers.Select(o => JobOfferDto.From(o, Today)).ToList();
+        var today = Today;
+        return offers.Select(o => JobOfferDto.From(o, today)).ToList();
     }
 
     public async Task<JobOfferDto?> GetAsync(Guid id, CancellationToken ct)
@@ -27,13 +32,28 @@ public sealed class JobOfferService(IJobOfferRepository repository, TimeProvider
         return JobOfferDto.From(offer, Today);
     }
 
-    /// <summary>Aplica un cambio de estado. Devuelve null si la oferta no existe.</summary>
-    public async Task<JobOfferDto?> ChangeAsync(Guid id, Action<JobOffer, DateOnly> change, CancellationToken ct)
+    /// <summary>Cambios sin datos de entrada: vista, aplicada, descartar, recuperar, cerrar, reabrir.</summary>
+    public Task<JobOfferDto?> ChangeAsync(Guid id, Action<JobOffer, DateOnly> change, CancellationToken ct) =>
+        UpdateAsync(id, change, ct);
+
+    public Task<JobOfferDto?> AddEventAsync(Guid id, AddApplicationEventRequest request, CancellationToken ct)
+    {
+        // Sin esta comprobación, un JSON sin "type" llegaría como CvRead, el primer valor del enum.
+        var type = request.Type ?? throw new ArgumentException("Indica el tipo de novedad.", nameof(request));
+        return UpdateAsync(id, (offer, today) => offer.AddEvent(request.Date ?? today, type, request.Text), ct);
+    }
+
+    public Task<JobOfferDto?> UpdateNotesAsync(Guid id, UpdateNotesRequest request, CancellationToken ct) =>
+        UpdateAsync(id, (offer, _) => offer.UpdateNotes(request.Notes), ct);
+
+    private async Task<JobOfferDto?> UpdateAsync(Guid id, Action<JobOffer, DateOnly> change, CancellationToken ct)
     {
         var offer = await repository.GetByIdAsync(id, ct);
         if (offer is null) return null;
-        change(offer, Today);
+
+        var today = Today;
+        change(offer, today);
         await repository.SaveChangesAsync(ct);
-        return JobOfferDto.From(offer, Today);
+        return JobOfferDto.From(offer, today);
     }
 }

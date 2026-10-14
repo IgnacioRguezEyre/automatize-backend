@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 using Empleos.Api.Endpoints;
 using Empleos.Application.JobOffers;
+using Empleos.Application.Sources;
+using Empleos.Domain.Common;
 using Empleos.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics;
 
@@ -14,6 +16,7 @@ builder.Services.AddProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<JobOfferService>();
+builder.Services.AddScoped<SourceService>();
 builder.Services.AddInfrastructure(connectionString);
 
 var app = builder.Build();
@@ -26,7 +29,7 @@ app.UseExceptionHandler(errors => errors.Run(async context =>
     {
         BadHttpRequestException bad => (bad.StatusCode, "Petición no válida"),
         ArgumentException => (StatusCodes.Status400BadRequest, "Datos no válidos"),
-        InvalidOperationException => (StatusCodes.Status409Conflict, "Operación no permitida"),
+        DomainException => (StatusCodes.Status409Conflict, "Operación no permitida"),
         _ => (StatusCodes.Status500InternalServerError, "Error inesperado")
     };
     context.Response.StatusCode = status;
@@ -40,5 +43,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapJobOfferEndpoints();
+app.MapSourceEndpoints();
 
 app.Run();
+
+// Necesario para que los tests de integración puedan arrancar la API con WebApplicationFactory<Program>.
+public partial class Program;

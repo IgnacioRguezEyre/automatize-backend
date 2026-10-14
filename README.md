@@ -37,9 +37,27 @@ Las tablas del servicio van en el esquema `jobs`.
 
 | Método | Ruta | Qué hace |
 |---|---|---|
-| GET | `/api/job-offers?status=New` | Lista ofertas, opcionalmente por estado |
-| GET | `/api/job-offers/{id}` | Una oferta |
+| GET | `/api/job-offers?status=New` | Lista ofertas, opcionalmente por estado (`New`, `Viewed`, `Applied`, `Discarded`) |
+| GET | `/api/job-offers/{id}` | Una oferta, con sus novedades y notas |
 | POST | `/api/job-offers` | Crea una oferta |
 | POST | `/api/job-offers/{id}/view` · `apply` · `unapply` · `discard` · `restore` | Cambia el estado |
+| POST | `/api/job-offers/{id}/close` · `reopen` | Marca que ya no acepta candidaturas, o lo quita |
+| POST | `/api/job-offers/{id}/events` | Anota una novedad: `CvRead`, `Response`, `Interview` o `Rejection` |
+| PUT | `/api/job-offers/{id}/notes` | Guarda las notas |
+| GET · POST | `/api/sources` | Lista o crea fuentes (portales y sus remitentes) |
+| GET · DELETE | `/api/sources/{id}` | Lee o borra una fuente |
+| POST · DELETE | `/api/sources/{id}/senders` · `/senders/{email}` | Añade o quita un remitente |
+| POST | `/api/sources/{id}/activate` · `deactivate` | Activa o desactiva la fuente |
+| PUT | `/api/sources/{id}/rule` | Cambia la regla de filtrado |
 
-Una regla de dominio incumplida devuelve 409 (por ejemplo, aplicar a una descartada) y un dato no válido, 400. Las peticiones de ejemplo están en `src/Empleos.Api/Empleos.Api.http`.
+Respuestas de error: 400 si un dato no es válido, 404 si no existe, 409 si se incumple una regla de negocio (aplicar a una descartada, fuente con nombre repetido). Las peticiones de ejemplo están en `src/Empleos.Api/Empleos.Api.http`.
+
+## Tests
+
+| Proyecto | Qué prueba | Necesita |
+|---|---|---|
+| `Empleos.Domain.Tests` | Reglas de las entidades `JobOffer` y `Source` | Nada |
+| `Empleos.Application.Tests` | Casos de uso, con repositorios en memoria y un reloj fijo | Nada |
+| `Empleos.Api.IntegrationTests` | La API completa contra un SQL Server temporal en Docker (Testcontainers), aplicando las migraciones | Docker Desktop arrancado |
+
+`dotnet test` desde `services/empleos` lanza todos.

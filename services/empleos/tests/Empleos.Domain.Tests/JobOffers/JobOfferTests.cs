@@ -1,3 +1,4 @@
+using Empleos.Domain.Common;
 using Empleos.Domain.JobOffers;
 
 namespace Empleos.Domain.Tests.JobOffers;
@@ -99,7 +100,7 @@ public class JobOfferTests
         var offer = NewOffer();
         offer.Discard(Today);
 
-        Assert.Throws<InvalidOperationException>(() => offer.MarkApplied(Today));
+        Assert.Throws<DomainException>(() => offer.MarkApplied(Today));
         Assert.Equal(JobOfferStatus.Discarded, offer.Status);
     }
 

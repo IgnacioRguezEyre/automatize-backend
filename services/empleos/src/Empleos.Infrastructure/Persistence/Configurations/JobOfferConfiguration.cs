@@ -6,7 +6,7 @@ namespace Empleos.Infrastructure.Persistence.Configurations;
 
 /// <summary>
 /// Mapeo de JobOffer. El dominio no sabe nada de EF: todo lo de la base de datos se decide aquí.
-/// EF usa el constructor privado de JobOffer y rellena Status y StatusDate por sus setters privados.
+/// EF usa el constructor privado de JobOffer y rellena el resto por sus setters privados.
 /// </summary>
 internal sealed class JobOfferConfiguration : IEntityTypeConfiguration<JobOffer>
 {
@@ -23,6 +23,21 @@ internal sealed class JobOfferConfiguration : IEntityTypeConfiguration<JobOffer>
 
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(o => o.StatusDate);
+
+        builder.Property(o => o.Notes).HasMaxLength(JobOffer.MaxNotesLength).IsRequired();
+        builder.Property(o => o.IsClosed).IsRequired();
+
+        // Las novedades van en su propia tabla, pero solo se cargan y se guardan a través de la oferta.
+        // EF accede a la lista privada _events porque la propiedad pública es de solo lectura.
+        builder.OwnsMany(o => o.Events, events =>
+        {
+            events.ToTable("ApplicationEvents");
+            events.WithOwner().HasForeignKey("JobOfferId");
+            events.Property(e => e.Date).IsRequired();
+            events.Property(e => e.Type).HasConversion<string>().HasMaxLength(20).IsRequired();
+            events.Property(e => e.Text).HasMaxLength(ApplicationEvent.MaxTextLength).IsRequired();
+        });
+        builder.Navigation(o => o.Events).UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasIndex(o => o.Status);
         builder.HasIndex(o => o.ArrivalDate);

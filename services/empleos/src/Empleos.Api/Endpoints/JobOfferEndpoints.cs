@@ -39,6 +39,14 @@ public static class JobOfferEndpoints
         MapTransition(group, "/{id:guid}/unapply", (o, today) => o.UnmarkApplied(today));
         MapTransition(group, "/{id:guid}/discard", (o, today) => o.Discard(today));
         MapTransition(group, "/{id:guid}/restore", (o, today) => o.Restore(today));
+        MapTransition(group, "/{id:guid}/close", (o, _) => o.Close());
+        MapTransition(group, "/{id:guid}/reopen", (o, _) => o.Reopen());
+
+        group.MapPost("/{id:guid}/events", async (Guid id, AddApplicationEventRequest request, JobOfferService service, CancellationToken ct) =>
+            await service.AddEventAsync(id, request, ct) is { } offer ? Results.Ok(offer) : Results.NotFound());
+
+        group.MapPut("/{id:guid}/notes", async (Guid id, UpdateNotesRequest request, JobOfferService service, CancellationToken ct) =>
+            await service.UpdateNotesAsync(id, request, ct) is { } offer ? Results.Ok(offer) : Results.NotFound());
 
         return app;
     }

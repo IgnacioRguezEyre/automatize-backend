@@ -1,3 +1,5 @@
+using Empleos.Domain.Common;
+
 namespace Empleos.Domain.JobOffers;
 
 /// <summary>
@@ -7,6 +9,9 @@ namespace Empleos.Domain.JobOffers;
 public sealed class JobOffer
 {
     public const int DaysUntilStale = 14;
+    public const int MaxNotesLength = 2000;
+
+    private readonly List<ApplicationEvent> _events = [];
 
     public Guid Id { get; }
     public string Title { get; }
@@ -17,6 +22,15 @@ public sealed class JobOffer
 
     /// <summary>Día del último cambio de estado; null mientras sigue como recién llegada.</summary>
     public DateOnly? StatusDate { get; private set; }
+
+    /// <summary>Notas libres: contacto, salario hablado, fecha de la entrevista…</summary>
+    public string Notes { get; private set; } = string.Empty;
+
+    /// <summary>La oferta ya no acepta candidaturas.</summary>
+    public bool IsClosed { get; private set; }
+
+    /// <summary>Seguimiento de la candidatura, del más antiguo al más reciente.</summary>
+    public IReadOnlyCollection<ApplicationEvent> Events => _events.AsReadOnly();
 
     private JobOffer(Guid id, string title, string company, string portal, DateOnly arrivalDate)
     {
@@ -53,7 +67,7 @@ public sealed class JobOffer
     {
         if (Status == JobOfferStatus.Applied) return;
         if (Status == JobOfferStatus.Discarded)
-            throw new InvalidOperationException("Una oferta descartada no se puede marcar como aplicada; recupérala antes.");
+            throw new DomainException("Una oferta descartada no se puede marcar como aplicada; recupérala antes.");
         ChangeStatus(JobOfferStatus.Applied, date);
     }
 
@@ -76,6 +90,46 @@ public sealed class JobOffer
         if (Status != JobOfferStatus.Discarded) return;
         ChangeStatus(JobOfferStatus.Viewed, today);
     }
+
+    /// <summary>
+    /// Anota una novedad de la candidatura. Devuelve false si ya existía otra del mismo tipo ese día.
+    /// Si la empresa responde a una oferta nueva o vista, es que aplicaste: pasa a aplicada.
+    /// Un rechazo la descarta.
+    /// </summary>
+    public bool AddEvent(DateOnly date, ApplicationEventType type, string? text)
+    {
+        if (!Enum.IsDefined(type))
+            throw new ArgumentException("Tipo de novedad desconocido.", nameof(type));
+        if (date < ArrivalDate)
+            throw new ArgumentException("La novedad no puede ser anterior a la llegada de la oferta.", nameof(date));
+
+        var clean = (text ?? string.Empty).Trim();
+        if (clean.Length > ApplicationEvent.MaxTextLength)
+            throw new ArgumentException($"El texto admite como máximo {ApplicationEvent.MaxTextLength} caracteres.", nameof(text));
+
+        if (_events.Any(e => e.Date == date && e.Type == type)) return false;
+
+        _events.Add(new ApplicationEvent(date, type, clean));
+
+        if (type == ApplicationEventType.Rejection)
+            Discard(date);
+        else if (Status is JobOfferStatus.New or JobOfferStatus.Viewed)
+            ChangeStatus(JobOfferStatus.Applied, date);
+
+        return true;
+    }
+
+    public void UpdateNotes(string? notes)
+    {
+        var clean = (notes ?? string.Empty).Trim();
+        if (clean.Length > MaxNotesLength)
+            throw new ArgumentException($"Las notas admiten como máximo {MaxNotesLength} caracteres.", nameof(notes));
+        Notes = clean;
+    }
+
+    public void Close() => IsClosed = true;
+
+    public void Reopen() => IsClosed = false;
 
     /// <summary>Lleva 14 días o más desde que llegó y todavía no has aplicado ni la has descartado.</summary>
     public bool IsStale(DateOnly today)

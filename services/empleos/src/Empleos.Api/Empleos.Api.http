@@ -1,5 +1,6 @@
 @host = http://localhost:5216
 @id = 6d6551ef-c983-4a6d-ad47-04403b7f004a
+@sourceId = pega-aqui-el-id-de-la-fuente
 
 ### Crear una oferta (copia el "id" de la respuesta en @id)
 POST {{host}}/api/job-offers
@@ -38,3 +39,66 @@ POST {{host}}/api/job-offers
 Content-Type: application/json
 
 { "title": "", "portal": "LinkedIn" }
+
+### Anotar una novedad (CvRead, Response, Interview, Rejection). Si la oferta era nueva o vista, pasa a aplicada
+POST {{host}}/api/job-offers/{{id}}/events
+Content-Type: application/json
+
+{ "type": "Interview", "date": "2026-10-15", "text": "Llamada con RR. HH. el lunes a las 10:00" }
+
+### Guardar notas
+PUT {{host}}/api/job-offers/{{id}}/notes
+Content-Type: application/json
+
+{ "notes": "Contacto: Laura (RR. HH.). Salario hablado: 40.000 €" }
+
+### Marcar como cerrada (ya no acepta candidaturas)
+POST {{host}}/api/job-offers/{{id}}/close
+
+### Reabrir
+POST {{host}}/api/job-offers/{{id}}/reopen
+
+### ---------- Fuentes ----------
+
+### Crear una fuente (copia el "id" en @sourceId, arriba del todo)
+POST {{host}}/api/sources
+Content-Type: application/json
+
+{
+  "name": "LinkedIn",
+  "senders": ["jobalerts-noreply@linkedin.com", "jobs-noreply@linkedin.com"],
+  "rule": ""
+}
+
+### Crear otra con el mismo nombre: devuelve 409
+POST {{host}}/api/sources
+Content-Type: application/json
+
+{ "name": "LinkedIn" }
+
+### Listar fuentes
+GET {{host}}/api/sources
+
+### Añadir un remitente
+POST {{host}}/api/sources/{{sourceId}}/senders
+Content-Type: application/json
+
+{ "email": "messages-noreply@linkedin.com" }
+
+### Quitar un remitente
+DELETE {{host}}/api/sources/{{sourceId}}/senders/messages-noreply@linkedin.com
+
+### Desactivar / activar
+POST {{host}}/api/sources/{{sourceId}}/deactivate
+
+###
+POST {{host}}/api/sources/{{sourceId}}/activate
+
+### Cambiar la regla de filtrado
+PUT {{host}}/api/sources/{{sourceId}}/rule
+Content-Type: application/json
+
+{ "rule": "Solo ofertas de desarrollo en España" }
+
+### Borrar la fuente
+DELETE {{host}}/api/sources/{{sourceId}}
