@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Comparte los user-secrets con la herramienta GmailAuth: lo que guarda una lo lee la otra. -->
+    <UserSecretsId>automatize-integraciones</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Integraciones.Application\Integraciones.Application.csproj" />
+    <ProjectReference Include="..\Integraciones.Infrastructure\Integraciones.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

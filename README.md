@@ -1,6 +1,7 @@
 # automatize-backend
 
 [![Empleos CI](https://github.com/IgnacioRguezEyre/automatize-backend/actions/workflows/empleos-ci.yml/badge.svg?branch=dev)](https://github.com/IgnacioRguezEyre/automatize-backend/actions/workflows/empleos-ci.yml)
+[![Integraciones CI](https://github.com/IgnacioRguezEyre/automatize-backend/actions/workflows/integraciones-ci.yml/badge.svg?branch=dev)](https://github.com/IgnacioRguezEyre/automatize-backend/actions/workflows/integraciones-ci.yml)
 
 ## Base de datos local
 
@@ -59,6 +60,26 @@ Las tablas del servicio van en el esquema `jobs`.
 
 Respuestas de error: 400 si un dato no es válido, 404 si no existe, 409 si se incumple una regla de negocio (aplicar a una descartada, fuente con nombre repetido). Las peticiones de ejemplo están en `src/Empleos.Api/Empleos.Api.http`.
 
+## Servicio Integraciones
+
+Lee las alertas de empleo de Gmail y las envía a Empleos. No tiene base de datos: cada pasada mira los
+últimos días (`Sync:LookbackDays`) y Empleos ignora los `externalId` que ya tiene, así que repetir es inocuo.
+
+```
+Gmail API ──► GmailMailboxReader ──► MailSyncService ──► analizador del portal ──► EmpleosClient ──► POST /api/job-offers/import
+            (Infrastructure)        (Application)      (LinkedIn, Indeed, Glassdoor,   (HttpClient con reintentos)
+                                                         InfoJobs, Tecnoempleo)
+```
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| POST | `/api/sync` | Sincroniza ahora. Con `?dryRun=true` solo devuelve lo que encontraría |
+| GET | `/api/sync/query` | La búsqueda de Gmail que se usa |
+| GET | `/health` | Salud del servicio |
+
+Además se sincroniza solo cada `Sync:IntervalMinutes` (60 por defecto; desactivado en desarrollo).
+Cómo conectar Gmail: [`docs/gmail-setup.md`](docs/gmail-setup.md).
+
 ## Tests
 
 | Proyecto | Qué prueba | Necesita |
@@ -67,11 +88,13 @@ Respuestas de error: 400 si un dato no es válido, 404 si no existe, 409 si se i
 | `Empleos.Application.Tests` | Casos de uso, con repositorios en memoria y un reloj fijo | Nada |
 | `Empleos.Api.IntegrationTests` | La API completa contra un SQL Server temporal en Docker (Testcontainers), aplicando las migraciones | Docker Desktop arrancado |
 
-`dotnet test` desde `services/empleos` lanza todos.
+| `Integraciones.Tests` | Analizadores contra correos reales anonimizados, sincronización, cliente HTTP (reintentos) y API | Nada |
+
+`dotnet test` desde la carpeta de cada servicio lanza todos los suyos.
 
 ## Integración y entrega continuas
 
-El workflow `.github/workflows/empleos-ci.yml` se ejecuta en GitHub en cada push a `dev` o `main` y en cada pull request:
+Cada servicio tiene su workflow (`empleos-ci.yml`, `integraciones-ci.yml`) y solo se ejecuta si cambian sus archivos. El de Empleos se ejecuta en GitHub en cada push a `dev` o `main` y en cada pull request:
 
 1. Compila la solución con .NET 10.
 2. Falla si algún paquete (también los transitivos) tiene vulnerabilidades conocidas.

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Da acceso a configuración, opciones, HttpClientFactory y logging de ASP.NET Core sin ir paquete a paquete. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Cliente oficial de Google para la API de Gmail (incluye Google.Apis.Auth para OAuth). -->
+    <PackageReference Include="Google.Apis.Gmail.v1" Version="1.75.0.4225" />
+    <!-- Reintentos, timeouts y circuit breaker para el HttpClient que llama a Empleos (Polly por debajo). -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Integraciones.Application\Integraciones.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Integraciones.Tests" />
+  </ItemGroup>
+
+</Project>

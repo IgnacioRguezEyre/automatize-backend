@@ -1,0 +1,14 @@
+# Peticiones de prueba. Arranca antes Empleos (perfil http, puerto 5216) y esta API (perfil http, puerto 5226).
+@host = http://localhost:5226
+
+### Qué búsqueda se hará en Gmail
+GET {{host}}/api/sync/query
+
+### Simulación: lee y analiza el correo, pero no envía nada a Empleos
+POST {{host}}/api/sync?dryRun=true
+
+### Sincronización real: las ofertas nuevas acaban en Empleos
+POST {{host}}/api/sync
+
+### Salud del servicio
+GET {{host}}/health
