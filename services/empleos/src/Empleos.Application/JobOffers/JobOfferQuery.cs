@@ -3,7 +3,7 @@ using Empleos.Domain.JobOffers;
 namespace Empleos.Application.JobOffers;
 
 /// <summary>Filtros y página del listado de ofertas. Valida los valores para no lanzar consultas absurdas a la base de datos.</summary>
-public sealed record JobOfferQuery(JobOfferStatus? Status = null, string? Search = null, int Page = 1, int PageSize = DefaultPageSize)
+public sealed record JobOfferQuery(JobOfferStatus? Status = null, string? Search = null, int Page = 1, int PageSize = JobOfferQuery.DefaultPageSize)
 {
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
