@@ -24,6 +24,7 @@ GET {{host}}/api/job-offers?status=New
 
 ### Ver una
 GET {{host}}/api/job-offers/{{id}}
+//GET {{host}}/api/job-offers?search=net
 
 ### Marcar como vista
 POST {{host}}/api/job-offers/{{id}}/view
