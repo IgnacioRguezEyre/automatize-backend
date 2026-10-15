@@ -79,3 +79,12 @@ El workflow `.github/workflows/empleos-ci.yml` se ejecuta en GitHub en cada push
 4. Construye la imagen Docker de la API. En `main` además la publica en `ghcr.io/ignaciorguezeyre/automatize-empleos`.
 
 Para probar la imagen en local junto a la base de datos: `docker compose --profile app up -d --build` y la API queda en `http://localhost:5080`.
+
+## Despliegue en Azure
+
+Infraestructura como código en `infra/azure/main.bicep`: Azure Container Apps (escala a cero) y Azure SQL serverless con la oferta gratuita. GitHub Actions entra en Azure con OIDC, sin contraseñas guardadas.
+
+- `.github/workflows/infra.yml`: crea o actualiza la infraestructura (a mano).
+- Job `deploy` de `empleos-ci.yml`: en cada merge a `main` aplica las migraciones con un *migration bundle* y despliega la imagen nueva.
+
+En producción la API exige la cabecera `X-Api-Key` en `/api/*` y expone `/health` para las comprobaciones de Azure. La guía paso a paso está en [`docs/azure-setup.md`](docs/azure-setup.md).
