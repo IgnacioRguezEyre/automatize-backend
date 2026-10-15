@@ -429,3 +429,6 @@ FodyWeavers.xsd
 
 # Variables locales (contraseñas)
 .env
+
+# Datos personales para cargar en local (ofertas reales). No se suben al repositorio público.
+local-data/

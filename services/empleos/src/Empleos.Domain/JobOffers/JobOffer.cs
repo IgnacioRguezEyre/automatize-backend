@@ -10,6 +10,7 @@ public sealed class JobOffer
 {
     public const int DaysUntilStale = 14;
     public const int MaxNotesLength = 2000;
+    public const int MaxExternalIdLength = 150;
 
     private readonly List<ApplicationEvent> _events = [];
 
@@ -18,6 +19,18 @@ public sealed class JobOffer
     public string Company { get; }
     public string Portal { get; }
     public DateOnly ArrivalDate { get; }
+
+    /// <summary>
+    /// Identificador de la oferta en su origen (por ejemplo "li-4474059556" para LinkedIn). Sirve para no
+    /// duplicarla si vuelve a llegar o se importa dos veces. Puede faltar en las ofertas creadas a mano.
+    /// </summary>
+    public string? ExternalId { get; }
+
+    public string? Location { get; private set; }
+    public string? WorkMode { get; private set; }
+    public string? Salary { get; private set; }
+    public string? Url { get; private set; }
+    public string? Description { get; private set; }
     public JobOfferStatus Status { get; private set; }
 
     /// <summary>Día del último cambio de estado; null mientras sigue como recién llegada.</summary>
@@ -32,24 +45,44 @@ public sealed class JobOffer
     /// <summary>Seguimiento de la candidatura, del más antiguo al más reciente.</summary>
     public IReadOnlyCollection<ApplicationEvent> Events => _events.AsReadOnly();
 
-    private JobOffer(Guid id, string title, string company, string portal, DateOnly arrivalDate)
+    private JobOffer(Guid id, string title, string company, string portal, DateOnly arrivalDate, string? externalId)
     {
         Id = id;
         Title = title;
         Company = company;
         Portal = portal;
         ArrivalDate = arrivalDate;
+        ExternalId = externalId;
         Status = JobOfferStatus.New;
     }
 
-    public static JobOffer Create(string title, string? company, string portal, DateOnly arrivalDate)
+    public static JobOffer Create(
+        string title, string? company, string portal, DateOnly arrivalDate,
+        JobOfferDetails? details = null, string? externalId = null)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("El título es obligatorio.", nameof(title));
         if (string.IsNullOrWhiteSpace(portal))
             throw new ArgumentException("El portal es obligatorio.", nameof(portal));
 
-        return new JobOffer(Guid.NewGuid(), title.Trim(), (company ?? string.Empty).Trim(), portal.Trim(), arrivalDate);
+        var cleanExternalId = string.IsNullOrWhiteSpace(externalId) ? null : externalId.Trim();
+        if (cleanExternalId?.Length > MaxExternalIdLength)
+            throw new ArgumentException($"El identificador externo admite como máximo {MaxExternalIdLength} caracteres.", nameof(externalId));
+
+        var offer = new JobOffer(Guid.NewGuid(), title.Trim(), (company ?? string.Empty).Trim(), portal.Trim(), arrivalDate, cleanExternalId);
+        offer.UpdateDetails(details ?? JobOfferDetails.Empty);
+        return offer;
+    }
+
+    /// <summary>Sustituye los datos descriptivos. Se valida todo antes de cambiar nada.</summary>
+    public void UpdateDetails(JobOfferDetails details)
+    {
+        var clean = details.Normalize();
+        Location = clean.Location;
+        WorkMode = clean.WorkMode;
+        Salary = clean.Salary;
+        Url = clean.Url;
+        Description = clean.Description;
     }
 
     /// <summary>Abrir la oferta la marca como vista. Si ya pasó de nueva, no hace nada.</summary>

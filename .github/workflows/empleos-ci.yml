@@ -6,7 +6,7 @@ name: Empleos CI
 
 on:
   push:
-    branches: [dev, main]
+    branches: [dev, main, "feature/**"]
     paths:
       - "services/empleos/**"
       - ".github/workflows/empleos-ci.yml"
@@ -66,6 +66,10 @@ jobs:
           dotnet test Empleos.slnx --no-build --configuration Release
           --logger "trx;LogFilePrefix=results"
           --results-directory ${{ github.workspace }}/test-results
+
+      - name: Resumen de los tests
+        if: always()
+        run: python3 ${{ github.workspace }}/.github/scripts/test-summary.py ${{ github.workspace }}/test-results
 
       - name: Guardar los resultados de los tests
         if: always() # también cuando fallan, que es cuando más se necesitan

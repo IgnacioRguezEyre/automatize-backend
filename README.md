@@ -25,6 +25,8 @@ Para parar: `docker compose down` (los datos se conservan en el volumen `sqlserv
 
 ## Migraciones (servicio Empleos)
 
+En desarrollo la API aplica sola las migraciones pendientes al arrancar (`Database:MigrateOnStartup` en `appsettings.Development.json`). En producción no: las aplicará el pipeline de despliegue.
+
 Herramienta, una sola vez: `dotnet tool install --global dotnet-ef`
 
 Desde `services/empleos`:
@@ -40,9 +42,11 @@ Las tablas del servicio van en el esquema `jobs`.
 
 | Método | Ruta | Qué hace |
 |---|---|---|
-| GET | `/api/job-offers?status=New` | Lista ofertas, opcionalmente por estado (`New`, `Viewed`, `Applied`, `Discarded`) |
+| GET | `/api/job-offers?status=New&search=net&page=1&pageSize=20` | Lista paginada. Filtros opcionales: estado (`New`, `Viewed`, `Applied`, `Discarded`) y texto en título o empresa |
 | GET | `/api/job-offers/{id}` | Una oferta, con sus novedades y notas |
 | POST | `/api/job-offers` | Crea una oferta |
+| POST | `/api/job-offers/import` | Importa ofertas con su historial. Idempotente por `externalId` |
+| PUT | `/api/job-offers/{id}/details` | Cambia ubicación, modalidad, salario, enlace y descripción |
 | POST | `/api/job-offers/{id}/view` · `apply` · `unapply` · `discard` · `restore` | Cambia el estado |
 | POST | `/api/job-offers/{id}/close` · `reopen` | Marca que ya no acepta candidaturas, o lo quita |
 | POST | `/api/job-offers/{id}/events` | Anota una novedad: `CvRead`, `Response`, `Interview` o `Rejection` |

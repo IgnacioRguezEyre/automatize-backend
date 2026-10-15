@@ -13,14 +13,18 @@ Content-Type: application/json
   "arrivalDate": "2026-10-14"
 }
 
-### Listar todas
+### Listar (primera página, 20 por defecto)
 GET {{host}}/api/job-offers
+
+### Buscar y paginar
+GET {{host}}/api/job-offers?search=net&page=2&pageSize=10
 
 ### Listar solo las nuevas
 GET {{host}}/api/job-offers?status=New
 
 ### Ver una
 GET {{host}}/api/job-offers/{{id}}
+//GET {{host}}/api/job-offers?search=net
 
 ### Marcar como vista
 POST {{host}}/api/job-offers/{{id}}/view
@@ -102,3 +106,30 @@ Content-Type: application/json
 
 ### Borrar la fuente
 DELETE {{host}}/api/sources/{{sourceId}}
+
+### ---------- Detalles e importación ----------
+
+### Cambiar los datos descriptivos
+PUT {{host}}/api/job-offers/{{id}}/details
+Content-Type: application/json
+
+{ "location": "Vigo", "workMode": "Híbrido", "salary": "36.000-42.000 €", "url": "https://example.com/oferta", "description": "Backend con ASP.NET Core y SQL Server" }
+
+### Importar (idempotente: repítela y verás "skipped": 1)
+POST {{host}}/api/job-offers/import
+Content-Type: application/json
+
+[
+  {
+    "externalId": "ejemplo-1",
+    "title": "Desarrollador .NET",
+    "company": "Empresa de ejemplo",
+    "portal": "LinkedIn",
+    "arrivalDate": "2026-10-10",
+    "status": "Applied",
+    "statusDate": "2026-10-11",
+    "location": "Remoto",
+    "isClosed": false,
+    "events": [ { "date": "2026-10-13", "type": "Response", "text": "Piden disponibilidad para una llamada" } ]
+  }
+]
