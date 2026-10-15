@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Empleos.Application.Common;
 using Empleos.Application.JobOffers;
 using Empleos.Domain.JobOffers;
 
@@ -67,10 +68,10 @@ public class JobOffersApiTests(ApiFactory factory)
         var viewed = await CreateOffer("Oferta vista");
         await _client.PostAsync($"/api/job-offers/{viewed.Id}/view", null);
 
-        var offers = await _client.GetFromJsonAsync<List<JobOfferDto>>("/api/job-offers?status=viewed", Json.Options);
+        var result = await _client.GetFromJsonAsync<PagedResult<JobOfferDto>>("/api/job-offers?status=viewed&pageSize=100", Json.Options);
 
-        Assert.Contains(offers!, o => o.Id == viewed.Id);
-        Assert.All(offers!, o => Assert.Equal(JobOfferStatus.Viewed, o.Status));
+        Assert.Contains(result!.Items, o => o.Id == viewed.Id);
+        Assert.All(result.Items, o => Assert.Equal(JobOfferStatus.Viewed, o.Status));
     }
 
     [Fact]
@@ -124,5 +125,55 @@ public class JobOffersApiTests(ApiFactory factory)
 
         Assert.True(closed!.IsClosed);
         Assert.False(reopened!.IsClosed);
+    }
+
+    [Fact]
+    public async Task List_is_paged_and_searchable()
+    {
+        var tag = Guid.NewGuid().ToString("N")[..8];
+        for (var i = 0; i < 3; i++) await CreateOffer($"Paginación {tag} {i}");
+
+        var page1 = await _client.GetFromJsonAsync<PagedResult<JobOfferDto>>($"/api/job-offers?search={tag}&pageSize=2", Json.Options);
+        var page2 = await _client.GetFromJsonAsync<PagedResult<JobOfferDto>>($"/api/job-offers?search={tag}&pageSize=2&page=2", Json.Options);
+
+        Assert.Equal(3, page1!.TotalCount);
+        Assert.Equal(2, page1.Items.Count);
+        Assert.Single(page2!.Items);
+        Assert.Empty(page1.Items.Select(o => o.Id).Intersect(page2.Items.Select(o => o.Id)));
+    }
+
+    [Fact]
+    public async Task List_with_a_page_size_out_of_range_returns_400()
+    {
+        var response = await _client.GetAsync("/api/job-offers?pageSize=1000");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Import_is_idempotent_and_keeps_the_history()
+    {
+        var id = $"test-{Guid.NewGuid():N}";
+        ImportJobOfferItem[] items =
+        [
+            new(id, "Desarrollador .NET", "Devoteam", "Directo", new DateOnly(2026, 10, 9), JobOfferStatus.Applied, new DateOnly(2026, 10, 9),
+                null, null, null, "https://example.com/oferta", "Backend con ASP.NET Core", "Notas importadas", true,
+                [new ImportApplicationEvent(new DateOnly(2026, 10, 12), ApplicationEventType.Response, "Revisarán la candidatura")])
+        ];
+
+        var first = await (await _client.PostAsJsonAsync("/api/job-offers/import", items, Json.Options)).Content.ReadFromJsonAsync<ImportResult>(Json.Options);
+        var second = await (await _client.PostAsJsonAsync("/api/job-offers/import", items, Json.Options)).Content.ReadFromJsonAsync<ImportResult>(Json.Options);
+
+        Assert.Equal(1, first!.Created);
+        Assert.Equal(0, second!.Created);
+        Assert.Equal(1, second.Skipped);
+
+        var found = await _client.GetFromJsonAsync<PagedResult<JobOfferDto>>("/api/job-offers?search=Devoteam&pageSize=100", Json.Options);
+        var offer = Assert.Single(found!.Items, o => o.ExternalId == id);
+        Assert.Equal(JobOfferStatus.Applied, offer.Status);
+        Assert.True(offer.IsClosed);
+        Assert.Equal("Notas importadas", offer.Notes);
+        Assert.Equal("https://example.com/oferta", offer.Url);
+        Assert.Single(offer.Events);
     }
 }

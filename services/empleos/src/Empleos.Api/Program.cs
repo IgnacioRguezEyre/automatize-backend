@@ -21,6 +21,12 @@ builder.Services.AddInfrastructure(connectionString);
 
 var app = builder.Build();
 
+// En desarrollo la base de datos se crea o actualiza sola al arrancar (ver appsettings.Development.json).
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    await app.Services.MigrateJobsDatabaseAsync();
+}
+
 // Las reglas de dominio que se incumplen se devuelven como 400 o 409 en lugar de 500.
 app.UseExceptionHandler(errors => errors.Run(async context =>
 {

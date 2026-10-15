@@ -21,6 +21,16 @@ internal sealed class JobOfferConfiguration : IEntityTypeConfiguration<JobOffer>
         builder.Property(o => o.Portal).HasMaxLength(100).IsRequired();
         builder.Property(o => o.ArrivalDate).IsRequired();
 
+        builder.Property(o => o.ExternalId).HasMaxLength(JobOffer.MaxExternalIdLength);
+        // Único solo entre las que lo tienen: las ofertas creadas a mano no llevan ExternalId.
+        builder.HasIndex(o => o.ExternalId).IsUnique().HasFilter("[ExternalId] IS NOT NULL");
+
+        builder.Property(o => o.Location).HasMaxLength(JobOfferDetails.MaxLocationLength);
+        builder.Property(o => o.WorkMode).HasMaxLength(JobOfferDetails.MaxWorkModeLength);
+        builder.Property(o => o.Salary).HasMaxLength(JobOfferDetails.MaxSalaryLength);
+        builder.Property(o => o.Url).HasMaxLength(JobOfferDetails.MaxUrlLength);
+        builder.Property(o => o.Description).HasMaxLength(JobOfferDetails.MaxDescriptionLength);
+
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(o => o.StatusDate);
 

@@ -33,9 +33,9 @@ public class JobOfferServiceTests
         await CreateOffer(Today.AddDays(-20));
         await CreateOffer(Today.AddDays(-2));
 
-        var offers = await _service.ListAsync(null, default);
+        var result = await _service.ListAsync(new JobOfferQuery(), default);
 
-        Assert.Equal(1, offers.Count(o => o.IsStale));
+        Assert.Equal(1, result.Items.Count(o => o.IsStale));
     }
 
     [Fact]
@@ -45,9 +45,9 @@ public class JobOfferServiceTests
         await CreateOffer();
         await _service.ChangeAsync(applied.Id, (o, today) => o.MarkApplied(today), default);
 
-        var offers = await _service.ListAsync(JobOfferStatus.Applied, default);
+        var result = await _service.ListAsync(new JobOfferQuery(Status: JobOfferStatus.Applied), default);
 
-        Assert.Equal(applied.Id, Assert.Single(offers).Id);
+        Assert.Equal(applied.Id, Assert.Single(result.Items).Id);
     }
 
     [Fact]
