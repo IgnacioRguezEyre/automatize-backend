@@ -67,6 +67,10 @@ jobs:
           --logger "trx;LogFilePrefix=results"
           --results-directory ${{ github.workspace }}/test-results
 
+      - name: Resumen de los tests
+        if: always()
+        run: python3 ${{ github.workspace }}/.github/scripts/test-summary.py ${{ github.workspace }}/test-results
+
       - name: Guardar los resultados de los tests
         if: always() # también cuando fallan, que es cuando más se necesitan
         uses: actions/upload-artifact@v4
