@@ -1,0 +1,11 @@
+# Git guarda los saltos de línea normalizados (LF) y cada sistema los convierte al suyo al descargar.
+* text=auto
+
+# Scripts y archivos de contenedores, siempre LF aunque se editen en Windows.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+
+# Archivos de Visual Studio, siempre CRLF.
+*.sln text eol=crlf
+*.slnx text eol=crlf
