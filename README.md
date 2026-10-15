@@ -1,4 +1,7 @@
 # automatize-backend
+
+[![Empleos CI](https://github.com/IgnacioRguezEyre/automatize-backend/actions/workflows/empleos-ci.yml/badge.svg?branch=dev)](https://github.com/IgnacioRguezEyre/automatize-backend/actions/workflows/empleos-ci.yml)
+
 ## Base de datos local
 
 SQL Server 2025 (edición Developer) en Docker. Una base de datos por microservicio; la de Empleos se llama `Jobs` y la crean las migraciones de Entity Framework.
@@ -61,3 +64,14 @@ Respuestas de error: 400 si un dato no es válido, 404 si no existe, 409 si se i
 | `Empleos.Api.IntegrationTests` | La API completa contra un SQL Server temporal en Docker (Testcontainers), aplicando las migraciones | Docker Desktop arrancado |
 
 `dotnet test` desde `services/empleos` lanza todos.
+
+## Integración y entrega continuas
+
+El workflow `.github/workflows/empleos-ci.yml` se ejecuta en GitHub en cada push a `dev` o `main` y en cada pull request:
+
+1. Compila la solución con .NET 10.
+2. Falla si algún paquete (también los transitivos) tiene vulnerabilidades conocidas.
+3. Pasa los tests de dominio, aplicación e integración (estos últimos con SQL Server en Docker).
+4. Construye la imagen Docker de la API. En `main` además la publica en `ghcr.io/ignaciorguezeyre/automatize-empleos`.
+
+Para probar la imagen en local junto a la base de datos: `docker compose --profile app up -d --build` y la API queda en `http://localhost:5080`.

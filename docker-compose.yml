@@ -19,5 +19,21 @@ services:
       retries: 10
       start_period: 20s
 
+  # La API de Empleos en un contenedor, igual que se desplegaría. Solo arranca si lo pides:
+  #   docker compose --profile app up -d --build
+  empleos-api:
+    profiles: ["app"]
+    build:
+      context: services/empleos
+    container_name: automatize-empleos-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Jobs: "Server=sqlserver,1433;Database=Jobs;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+    ports:
+      - "5080:8080"
+
 volumes:
   sqlserver-data:
