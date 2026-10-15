@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Empleos.Api.Endpoints;
+using Empleos.Api.Security;
 using Empleos.Application.JobOffers;
 using Empleos.Application.Sources;
 using Empleos.Domain.Common;
@@ -25,6 +26,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<JobOfferService>();
 builder.Services.AddScoped<SourceService>();
 builder.Services.AddInfrastructure(connectionString);
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -63,6 +65,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseMiddleware<ApiKeyMiddleware>();
+
+// Lo consulta Azure Container Apps para saber si el contenedor está vivo. No pasa por la clave: no empieza por /api.
+app.MapHealthChecks("/health");
 app.MapJobOfferEndpoints();
 app.MapSourceEndpoints();
 

@@ -2,6 +2,7 @@
 #  - CI (en cada push a dev/main y en cada pull request): compila, busca paquetes vulnerables y pasa los tests.
 #  - Imagen Docker: se construye siempre para comprobar que el Dockerfile funciona; solo se publica
 #    en GitHub Container Registry (ghcr.io) cuando el cambio llega a main.
+#  - Despliegue (solo main): aplica las migraciones en Azure SQL y actualiza la API en Azure Container Apps.
 name: Empleos CI
 
 on:
@@ -100,7 +101,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Iniciar sesión en ghcr.io
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -112,6 +113,83 @@ jobs:
         with:
           context: services/empleos
           file: services/empleos/Dockerfile
-          push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+          push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    name: Desplegar en Azure
+    needs: docker
+    # Solo en main y cuando Azure está preparado (variable AZURE_DEPLOY_ENABLED = true en el repositorio).
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.AZURE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production # da acceso a los secrets de Azure y aparece en la pestaña Deployments
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: services/empleos
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'rg-automatize' }}
+      IMAGE: ghcr.io/${{ github.repository_owner }}/automatize-empleos
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Iniciar sesión en Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Un "bundle" es un ejecutable con todas las migraciones dentro. Se aplica antes de cambiar la imagen,
+      # para que la versión nueva de la API ya encuentre la base de datos actualizada.
+      - name: Crear el bundle de migraciones
+        env:
+          ConnectionStrings__Jobs: "Server=placeholder;Database=Jobs" # solo para construir el modelo; no se conecta
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.12
+          dotnet ef migrations bundle --project src/Empleos.Infrastructure --startup-project src/Empleos.Api \
+            --output efbundle --self-contained --target-runtime linux-x64 --force
+
+      - name: Abrir el firewall de SQL a esta máquina
+        id: firewall
+        run: |
+          SQL_SERVER=$(az sql server list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "server=$SQL_SERVER" >> "$GITHUB_OUTPUT"
+          az sql server firewall-rule create -g "$RESOURCE_GROUP" -s "$SQL_SERVER" \
+            -n github-actions-${{ github.run_id }} --start-ip-address "$RUNNER_IP" --end-ip-address "$RUNNER_IP" -o none
+
+      - name: Aplicar las migraciones
+        run: |
+          ./efbundle --connection "Server=tcp:${{ steps.firewall.outputs.server }}.database.windows.net,1433;Database=Jobs;User Id=automatizeadmin;Password=${{ secrets.SQL_ADMIN_PASSWORD }};Encrypt=True;Connection Timeout=120"
+
+      - name: Cerrar el firewall
+        if: always() && steps.firewall.outputs.server != ''
+        run: |
+          az sql server firewall-rule delete -g "$RESOURCE_GROUP" -s "${{ steps.firewall.outputs.server }}" \
+            -n github-actions-${{ github.run_id }} -o none
+
+      - name: Desplegar la imagen nueva
+        run: |
+          az containerapp update -g "$RESOURCE_GROUP" -n empleos-api --image "$IMAGE:sha-${GITHUB_SHA::7}" -o none
+          URL=$(az containerapp show -g "$RESOURCE_GROUP" -n empleos-api --query properties.configuration.ingress.fqdn -o tsv)
+          echo "API desplegada en https://$URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comprobar que responde
+        run: |
+          URL=$(az containerapp show -g "$RESOURCE_GROUP" -n empleos-api --query properties.configuration.ingress.fqdn -o tsv)
+          for i in $(seq 1 12); do
+            if curl -fsS "https://$URL/health"; then echo; exit 0; fi
+            sleep 10
+          done
+          echo "::error::La API no responde en /health tras el despliegue."
+          exit 1
+
