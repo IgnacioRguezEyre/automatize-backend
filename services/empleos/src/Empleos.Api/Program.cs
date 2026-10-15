@@ -11,7 +11,14 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("Jobs")
     ?? throw new InvalidOperationException("Falta la cadena de conexión 'Jobs'. Guárdala con dotnet user-secrets.");
 
-builder.Services.AddOpenApi();
+// Documento OpenAPI (la descripción de la API en JSON). Lo genera el propio ASP.NET Core a partir de los endpoints.
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+{
+    document.Info.Title = "Automatize · Empleos API";
+    document.Info.Version = "v1";
+    document.Info.Description = "Ofertas de empleo, seguimiento de candidaturas y fuentes de las que llegan.";
+    return Task.CompletedTask;
+}));
 builder.Services.AddProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSingleton(TimeProvider.System);
@@ -44,7 +51,15 @@ app.UseExceptionHandler(errors => errors.Run(async context =>
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi(); // sirve el documento en /openapi/v1.json
+
+    // Swagger UI es solo la interfaz web que lee ese documento y permite probar la API desde el navegador.
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "Empleos API v1");
+        options.DocumentTitle = "Empleos API";
+        options.DisplayRequestDuration();
+    });
 }
 
 app.UseHttpsRedirection();
